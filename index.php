@@ -20,9 +20,6 @@
             align-items: center;
 			background-image: url('images/sidebar.jpg');
         }
-        .header h1 {
-            margin: 0;
-        }
         .container {
             margin: 13px;
             background-color: white;
