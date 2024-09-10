@@ -107,7 +107,7 @@
             <a href="../index.php">Home</a>
             <a href="../model/login.php">Login</a>
             <a href="../model/signup.php">Signup</a>
-            <a href="../view/about.php">About</a>
+            <a href="../model/about.php">About</a>
         </div>
     </div>
     
@@ -131,22 +131,42 @@
     </div>
 </body>
 </html>
+
+
 <?php
 include '../controller/db_connect.php';
+
+define('ENCRYPTION_METHOD', 'AES-256-CBC');
+define('SECRET_KEY', 'your_secret_key');
+define('SECRET_IV', 'your_secret_iv');
+
+function decryptPassword($encrypted_password) {
+    $key = hash('sha256', SECRET_KEY);
+    $iv = substr(hash('sha256', SECRET_IV), 0, 16);
+    return openssl_decrypt($encrypted_password, ENCRYPTION_METHOD, $key, 0, $iv);
+}
+
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $username = $_POST['username'];
     $password = $_POST['password'];
-    $sql = "SELECT * FROM users WHERE username='$username'";
-    $result = $conn->query($sql);
+
+    $sql = "SELECT * FROM users WHERE username=?";
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param("s", $username);
+    $stmt->execute();
+    $result = $stmt->get_result();
+
     if ($result->num_rows > 0) {
         $user = $result->fetch_assoc();
-        if ($password == $user['password']) {
+        $decrypted_password = decryptPassword($user['password']);
+        
+        if ($password == $decrypted_password) {
             session_start();
             $_SESSION['username'] = $username;
-			$_SESSION['staff_id'] = $user['user_id'];
+            $_SESSION['staff_id'] = $user['user_id'];
             $_SESSION['role'] = $user['role'];
             if ($user['role'] == 'admin') {
-                echo "<script>alert('Login Success [Admin Mode]'); window.location.href='../view/admin_dashboard.php';</script>";
+                echo "<script>alert('Login Success [Admin Mode]'); window.location.href='../controller/admin_dashboard.php';</script>";
             } else {
                 echo "<script>alert('Login Success [Staff Mode]'); window.location.href='../view/Staff_dashboard.php';</script>";
             }
@@ -156,6 +176,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     } else {
         echo "<script>alert('User not found'); window.location.href='../model/login.php';</script>";
     }
+
+    $stmt->close();
     $conn->close();
 }
 ?>
+
