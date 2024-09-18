@@ -182,6 +182,9 @@ $conn->close();
     <div class="container">
         <div class="sidebar">
             <a href="../controller/apply_leave.php">Apply Leave</a>
+            <a href="../view/leave_history.php">View Leave History</a>
+            <a href="../view/leave_status.php">View Leave Status</a>
+            <a href="../view/profile.php">View Profile</a>
         </div>
         <div class="content">
             <h2>Staff Dashboard</h2>

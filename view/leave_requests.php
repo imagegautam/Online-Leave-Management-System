@@ -205,10 +205,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     }
 
     if ($conn->query($sql_update_status) === TRUE) {
-        echo "<script>alert('Leave request status updated successfully.'); window.location.href='../view/leave_requests.php';</script>";
-    } else {
-        echo "<script>alert('Error updating leave request status: " . $conn->error . "');</script>";
-    }
+        echo "<script>window.location.href='../view/leave_requests.php';</script>";
+    } 
 }
 
 $conn->close();

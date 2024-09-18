@@ -1,16 +1,5 @@
-
 <?php
 include '../controller/db_connect.php';
-
-define('ENCRYPTION_METHOD', 'AES-256-CBC');
-define('SECRET_KEY', 'your_secret_key');
-define('SECRET_IV', 'your_secret_iv');
-
-function decryptPassword($encrypted_password) {
-    $key = hash('sha256', SECRET_KEY);
-    $iv = substr(hash('sha256', SECRET_IV), 0, 16);
-    return openssl_decrypt($encrypted_password, ENCRYPTION_METHOD, $key, 0, $iv);
-}
 
 $alert_message = "";
 $modal_Message = "";
@@ -18,42 +7,21 @@ $modal_button = "";
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $username = $_POST['username'];
-    $password = $_POST['password'];
+    $email = $_POST['email'];
 
-    $sql = "SELECT * FROM users WHERE username=?";
+    $sql = "SELECT * FROM users WHERE username=? AND email=?";
     $stmt = $conn->prepare($sql);
-    $stmt->bind_param("s", $username);
+    $stmt->bind_param("ss", $username, $email);
     $stmt->execute();
     $result = $stmt->get_result();
 
     if ($result->num_rows > 0) {
-        $user = $result->fetch_assoc();
-        $decrypted_password = decryptPassword($user['password']);
-        
-        if ($password == $decrypted_password) {
-            session_start();
-            $_SESSION['username'] = $username;
-            $_SESSION['staff_id'] = $user['user_id'];
-            $_SESSION['role'] = $user['role'];
-
-            if ($user['role'] == 'admin') {
-                $alert_message = "Login Success [Admin Mode]";
-                $modal_Message = "Welcome! You have successfully logged in as an admin.";
-                $modal_button = "../controller/admin_dashboard.php";
-            } else {
-                $alert_message = "Login Success [Staff Mode]";
-                $modal_Message = "Welcome! You have successfully logged in as a staff member.";
-                $modal_button = "../view/Staff_dashboard.php";
-            }
-        } else {
-            $alert_message = "Invalid Password";
-            $modal_Message = "The password you entered is incorrect.";
-            $modal_button = "../model/login.php";
-        }
+        header("Location: ../controller/reset_password.php?username=" . urlencode($username));
+        exit();
     } else {
-        $alert_message = "User Not Found";
-        $modal_Message = "No account found with that username.";
-        $modal_button = "../model/login.php";
+        $alert_message = "Verification Failed";
+        $modal_Message = "The username and email you entered do not match.";
+        $modal_button = "../controller/forgot_password.php";
     }
 
     $stmt->close();
@@ -66,7 +34,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - Online Leave Management System</title>
+    <title>Forgot Password - Leave Management System</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -190,25 +158,22 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         <h1>TechS Inc Leave Management System</h1>
         <div class="nav-links">
             <a href="../index.php">Home</a>
-            <a href="../model/login.php">Login</a>
-            <a href="../model/signup.php">Signup</a>
             <a href="../model/about.php">About</a>
         </div>
     </div>
 
     <div class="container">
-        <h2>Login</h2>
-        <form action="../model/login.php" method="post">
+        <h2>Forgot Password</h2>
+        <form action="../controller/forgot_password.php" method="post">
             <div class="form-group">
                 <label for="username">Username:</label>
                 <input type="text" id="username" name="username" required>
             </div>
             <div class="form-group">
-                <label for="password">Password:</label>
-                <input type="password" id="password" name="password" required>
+                <label for="email">Email:</label>
+                <input type="email" id="email" name="email" required>
             </div>
-			<p><a href="../controller/forgot_password.php">Forgot Password?</a></p>
-            <button type="submit" class="btn">Login</button>
+            <button type="submit" class="btn">Verify</button>
         </form>
     </div>
 
@@ -225,6 +190,5 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         </div>
     </div>
     <?php endif; ?>
-
 </body>
 </html>
