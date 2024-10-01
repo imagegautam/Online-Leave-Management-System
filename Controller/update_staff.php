@@ -1,25 +1,31 @@
 <?php
 include '../controller/db_connect.php';
 
+$alert_message = "";
+$modal_button = "";
+$staff = [];
+
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $user_id = $_POST['user_id'];
     $username = $_POST['username'];
+    $email = $_POST['email'];
     $role = $_POST['role'];
     $password = $_POST['password'];
 
-    $sql = "UPDATE users SET username = ?, password = ?, role = ? WHERE user_id = ? AND role = 'staff'";
+    $sql = "UPDATE users SET username = ?, email = ?, password = ?, role = ? WHERE user_id = ? AND role = 'staff'";
     $stmt = $conn->prepare($sql);
-    $stmt->bind_param("sssi", $username, $password, $role, $user_id);
+    $stmt->bind_param("ssssi", $username, $email, $password, $role, $user_id);
 
     if ($stmt->execute()) {
-		echo "<script>alert('Staff details updated successfully.'); window.location.href='../view/view_all_staff.php';</script>";
+        $alert_message = "Staff details updated successfully.";
+        $modal_button = "../view/view_all_staff.php";
     } else {
-        echo "<script>alert('Failed to Update staff Details !!!..'); window.location.href='../controller/update_staff.php';</script>";
+        $alert_message = "Failed to Update staff Details !!!..";
+        $modal_button = "../controller/update_staff.php";
     }
 
     $stmt->close();
     $conn->close();
-    exit();
 }
 
 if (isset($_GET['id'])) {
@@ -34,13 +40,12 @@ if (isset($_GET['id'])) {
         $staff = $result->fetch_assoc();
     } else {
         echo "No staff found with the given ID.";
-        exit();
+
     }
 
-    $stmt->close();
 } else {
     echo "No staff ID provided.";
-    exit();
+
 }
 ?>
 <!DOCTYPE html>
@@ -140,6 +145,45 @@ if (isset($_GET['id'])) {
 			width:120px;
 			margin-left: 0px;
 		}
+		.modal {
+           
+            position: fixed;
+            z-index: 1;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0, 0, 0, 0.4);
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: 15% auto;
+            padding-left: 0px;
+			border-left-width: 0px;
+			padding-right: 10px;
+			padding-top: 10px;
+			padding-bottom: 10px;
+            border: 1px solid #888;
+            width: 30%;
+            border-radius: 5px;
+            text-align: center;
+        }
+        .modal-button {
+            display: block;
+            margin: 20px auto;
+			width: 100px;
+			height: 20px;
+            padding: 10px 20px;
+			font: status-bar;
+            background-color: #3498db;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+        }
+        .modal-button:hover {
+            background-color: #2980b9;
+        }
     </style>
 </head>
 <body>
@@ -167,24 +211,29 @@ if (isset($_GET['id'])) {
             <h2>Update Staff</h2>
             <form action="../controller/update_staff.php" method="post">
                 <div class="form-group">
-                    <label>ID</label>
-                    <input type="text" placeholder="Staff ID" name="user_id" value="<?php echo $staff['user_id']; ?>" required readonly>
-                </div>
+					<label>ID</label>
+					<input type="text" placeholder="Staff ID" name="user_id" value="<?php echo isset($staff['user_id']) ? $staff['user_id'] : ''; ?>" required readonly>
+				</div>
+				<div class="form-group">
+					<label>Name</label>
+					<input type="text" placeholder="Staff Name" name="username" value="<?php echo isset($staff['username']) ? $staff['username'] : ''; ?>" required>
+				</div>
+				<div class="form-group">
+					<label>Email</label>
+					<input type="text" placeholder="Email" name="email" value="<?php echo isset($staff['email']) ? $staff['email'] : ''; ?>" required>
+				</div>
+				<div class="form-group">
+					<label>Password</label>
+					<input type="text" id="password" name="password" value="<?php echo isset($staff['password']) ? $staff['password'] : ''; ?>" required>
+				</div>
                 <div class="form-group">
-                    <label>Name</label>
-                    <input type="text" placeholder="Staff Name" name="username" value="<?php echo $staff['username']; ?>" required>
-                </div>
-                <div class="form-group">
-                    <label>Password</label>
-                    <input type="text" id="password" name="password" value="<?php echo $staff['password']; ?>" required>
-                </div>
-                <div class="form-group">
-                    <label for="role">Role:</label>
-                    <select id="role" name="role" required>
-                        <option value="staff" <?php if($staff['role'] == 'staff') echo 'selected'; ?>>Staff</option>
-                        <option value="admin" <?php if($staff['role'] == 'admin') echo 'selected'; ?>>Admin</option>
-                    </select>
-                </div>
+					<label for="role">Role:</label>
+					<select id="role" name="role" required>
+						<option value="staff" <?php echo (isset($staff['role']) && $staff['role'] == 'staff') ? 'selected' : ''; ?>>Staff</option>
+						<option value="admin" <?php echo (isset($staff['role']) && $staff['role'] == 'admin') ? 'selected' : ''; ?>>Admin</option>
+					</select>
+				</div>
+
                 <button type="submit" class="btn">Update</button>
             </form>
         </div>
@@ -193,5 +242,13 @@ if (isset($_GET['id'])) {
     <div class="footer">
         © TechS Inc Company 2024, All Rights Reserved.
     </div>
+	 <?php if ($alert_message != ""): ?>
+    <div class="modal">
+        <div class="modal-content">
+            <p><?php echo $alert_message; ?></p>
+            <a href="<?php echo $modal_button; ?>" class="modal-button">Proceed</a>
+        </div>
+    </div>
+    <?php endif; ?>
 </body>
 </html>
