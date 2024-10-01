@@ -1,41 +1,34 @@
 <?php
-include '../controller/db_connect.php';
-
-define('ENCRYPTION_METHOD', 'AES-256-CBC');
-define('SECRET_KEY', 'your_secret_key');
-define('SECRET_IV', 'your_secret_iv');
 
 $alert_message = "";
-$modal_Message = "";
 $modal_button = "";
 
-if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    $username = $_POST['username'];
-    $new_password = $_POST['new_password'];
+$token = $_GET["token"];
 
-    $key = hash('sha256', SECRET_KEY);
-    $iv = substr(hash('sha256', SECRET_IV), 0, 16);
-    $encrypted_password = openssl_encrypt($new_password, ENCRYPTION_METHOD, $key, 0, $iv);
+$token_hash = hash("sha256", $token);
 
-    $sql = "UPDATE users SET password=? WHERE username=?";
-    $stmt = $conn->prepare($sql);
-    $stmt->bind_param("ss", $encrypted_password, $username);
+require_once('../controller/db_connect.php');
 
-    if ($stmt->execute()) {
-        $alert_message = "Password Reset Success";
-        $modal_Message = "Your password has been successfully reset.";
-        $modal_button = "../model/login.php";
-    } else {
-        $alert_message = "Password Reset Failed";
-        $modal_Message = "An error occurred while resetting your password. Please try again.";
-        $modal_button = "../controller/reset_password.php";
-    }
+$sql = "SELECT * FROM users
+        WHERE reset_token_hash = ?";
 
-    $stmt->close();
-    $conn->close();
+$stmt = $conn->prepare($sql);
+
+$stmt->bind_param("s", $token_hash);
+
+$stmt->execute();
+
+$result = $stmt->get_result();
+
+$user = $result->fetch_assoc();
+
+if ($user === null) {
+    die("token not found");
 }
 
-$username = isset($_GET['username']) ? $_GET['username'] : '';
+if (strtotime($user["reset_token_expires_at"]) <= time()) {
+    die("token has expired");
+}
 ?>
 
 <!DOCTYPE html>
@@ -43,7 +36,7 @@ $username = isset($_GET['username']) ? $_GET['username'] : '';
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Reset Password - Leave Management System</title>
+    <title>Reset Password</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -75,6 +68,7 @@ $username = isset($_GET['username']) ? $_GET['username'] : '';
         }
         .form-group {
             margin-bottom: 15px;
+            position: relative;
         }
         .form-group label {
             display: block;
@@ -85,6 +79,13 @@ $username = isset($_GET['username']) ? $_GET['username'] : '';
             padding: 8px;
             border: 1px solid #ddd;
             border-radius: 4px;
+        }
+        .form-group .toggle-password {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: pointer;
         }
         .btn {
             background-color: #3498db;
@@ -127,7 +128,6 @@ $username = isset($_GET['username']) ? $_GET['username'] : '';
             margin-left: 0px;
         }
         .modal {
-           
             position: fixed;
             z-index: 1;
             left: 0;
@@ -149,7 +149,7 @@ $username = isset($_GET['username']) ? $_GET['username'] : '';
         .modal-button {
             display: block;
             margin: 20px auto;
-			width: 65px;
+            width: 65px;
             padding: 10px 20px;
             background-color: #3498db;
             color: white;
@@ -159,42 +159,90 @@ $username = isset($_GET['username']) ? $_GET['username'] : '';
         .modal-button:hover {
             background-color: #2980b9;
         }
+		.form-group .toggle-password{
+			padding-top: 25px;
+		}
+		input[type="checkbox" i] {
+			height: 30px;
+			padding-top: 20px;
+			margin-top: 15px;
+			width: 20px;
+		}
     </style>
 </head>
 <body>
+    <header>
     <div class="header">
         <img class="imagesrc" src="../images/logo4.png" alt="" />
         <h1>TechS Inc Leave Management System</h1>
         <div class="nav-links">
             <a href="../index.php">Home</a>
+            <a href="../model/login.php">Login</a>
+            <a href="../model/signup.php">Signup</a>
             <a href="../model/about.php">About</a>
         </div>
     </div>
-
+    </header>
     <div class="container">
-        <h2>Reset Password</h2>
-        <form action="../controller/reset_password.php" method="post">
-            <input type="hidden" name="username" value="<?php echo htmlspecialchars($username); ?>">
-            <div class="form-group">
-                <label for="new_password">Enter New Password:</label>
-                <input type="password" id="new_password" name="new_password" required>
+        <h1>Reset Password</h1>
+        <div class="form-container">
+            <div class="form-inner">
+                <form action="ProcessResetPassword.php" method="POST" class="reset-password" autocomplete="off">
+                    <input type="hidden" name="token" value="<?= htmlspecialchars($token) ?>">
+                    <div class="form-group">
+                        <label for="password"><b>Password:</b></label>
+                        <div class="input-container user-input">
+                            <input type="password" id="password" name="password" onblur="this.value=this.value.trim()" placeholder="Please enter your Password" required />
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="password_confirmation"><b>Repeat password:</b></label>
+                        <div class="input-container user-input">
+                            <input type="password" id="password_confirmation" name="password_confirmation" onblur="checkPasswordMatch()" onkeyup="checkPasswordMatch()" placeholder="Please re-enter your Password" required />
+                            <input type="checkbox" onclick="togglePasswordVisibility()">
+                            <label for "">Show Password</label>
+                            <span id="passwordMatchMessage"></span>
+                        </div>
+                    </div>
+                        <button type="submit" class="btn">Reset</button>
+                    </div>
+                </form>
             </div>
-            <button type="submit" class="btn">Reset Password</button>
-        </form>
+        </div>
     </div>
-
     <div class="footer">
         © TechS Inc Company 2024, All Rights Reserved.
     </div>
 
-    <?php if ($alert_message != ""): ?>
-    <div class="modal">
-        <div class="modal-content">
-            <h2><?php echo $alert_message; ?></h2>
-            <p><?php echo $modal_Message; ?></p>
-            <a href="<?php echo $modal_button; ?>" class="modal-button">Proceed</a>
-        </div>
-    </div>
-    <?php endif; ?>
+    <script>
+        function checkPasswordMatch() {
+            var password = document.getElementById("password").value;
+            var confirmPassword = document.getElementById("password_confirmation").value;
+            var message = document.getElementById("passwordMatchMessage");
+
+            if (password === confirmPassword) {
+                message.innerHTML = "Passwords match";
+                message.style.color = "green";
+            } else {
+                message.innerHTML = "Passwords do not match";
+                message.style.color = "red";
+            }
+        }
+    </script>
+<script>
+    function togglePasswordVisibility() {
+        var passwordInput = document.getElementById("password");
+        var confirmPasswordInput = document.getElementById("password_confirmation");
+        
+        if (passwordInput.type === "password" && confirmPasswordInput.type === "password") {
+            passwordInput.type = "text";
+            confirmPasswordInput.type = "text";
+        } else {
+            passwordInput.type = "password";
+            confirmPasswordInput.type = "password";
+        }
+    }
+</script>
+
 </body>
 </html>

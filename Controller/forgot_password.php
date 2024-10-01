@@ -1,41 +1,72 @@
 <?php
-include '../controller/db_connect.php';
 
 $alert_message = "";
-$modal_Message = "";
 $modal_button = "";
 
-if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    $username = $_POST['username'];
-    $email = $_POST['email'];
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['email'])) {
+    $email = $_POST["email"];
+    $token = bin2hex(random_bytes(16));
+    $token_hash = hash("sha256", $token);
+    $expiry = date("Y-m-d H:i:s", time() + 60 * 30);
+    require_once '../controller/db_connect.php';
 
-    $sql = "SELECT * FROM users WHERE username=? AND email=?";
-    $stmt = $conn->prepare($sql);
-    $stmt->bind_param("ss", $username, $email);
-    $stmt->execute();
-    $result = $stmt->get_result();
+    // Check if the email exists first
+    $check_sql = "SELECT email FROM users WHERE email = ?";
+    $check_stmt = $conn->prepare($check_sql);
+    $check_stmt->bind_param("s", $email);
+    $check_stmt->execute();
+    $check_stmt->store_result();
 
-    if ($result->num_rows > 0) {
-        header("Location: ../controller/reset_password.php?username=" . urlencode($username));
-        exit();
+    if ($check_stmt->num_rows > 0) {
+        // Email exists, proceed with updating the reset token
+        $sql = "UPDATE users
+                SET reset_token_hash = ?,
+                    reset_token_expires_at = ?
+                WHERE email = ?";
+
+        $stmt = $conn->prepare($sql);
+        $stmt->bind_param("sss", $token_hash, $expiry, $email);
+        $stmt->execute();
+
+        if ($stmt->affected_rows > 0) {
+            $mail = require __DIR__ . "/mailer.php";
+            $mail->setFrom("usermaltego2@gmail.com");
+            $mail->addAddress($email);
+            $mail->Subject = "Reset your account password";
+            $mail->Body = <<<END
+
+            Click <a href="http://localhost/Leave/controller/ResetPassword.php?token=$token">here</a> 
+            to reset your password.
+
+END;
+
+            try {
+                $mail->send();
+                $alert_message = "Message sent successfully! Please check your Gmail inbox.";
+                $modal_button = "../controller/ForgotPassword.php";
+            } catch (Exception $e) {
+                $alert_message = "Message could not be sent. Incorrect Mail...";
+                $modal_button = "../controller/ForgotPassword.php";
+            }
+        } else {
+            $alert_message = "Error updating the token. Please try again.";
+            $modal_button = "../controller/ForgotPassword.php";
+        }
     } else {
-        $alert_message = "Verification Failed";
-        $modal_Message = "The username and email you entered do not match.";
-        $modal_button = "../controller/forgot_password.php";
+        // Email does not exist
+        $alert_message = "No account associated with this email.";
+        $modal_button = "../controller/ForgotPassword.php";
     }
-
-    $stmt->close();
-    $conn->close();
 }
 ?>
 
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Forgot Password - Leave Management System</title>
-    <style>
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Forgot Password</title>
+        <style>
         body {
             font-family: Arial, sans-serif;
             margin: 0;
@@ -66,6 +97,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         }
         .form-group {
             margin-bottom: 15px;
+            position: relative;
         }
         .form-group label {
             display: block;
@@ -77,10 +109,18 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             border: 1px solid #ddd;
             border-radius: 4px;
         }
+        .form-group .toggle-password {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: pointer;
+        }
         .btn {
             background-color: #3498db;
             color: white;
             padding: 10px 20px;
+            margin-bottom: 20px;
             border: none;
             border-radius: 4px;
             cursor: pointer;
@@ -118,7 +158,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             margin-left: 0px;
         }
         .modal {
-           
             position: fixed;
             z-index: 1;
             left: 0;
@@ -140,7 +179,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         .modal-button {
             display: block;
             margin: 20px auto;
-			width: 65px;
+            width: 65px;
             padding: 10px 20px;
             background-color: #3498db;
             color: white;
@@ -150,45 +189,55 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         .modal-button:hover {
             background-color: #2980b9;
         }
+		.form-group .toggle-password{
+			padding-top: 25px;
+		}
+		input[type="checkbox" i] {
+			height: 30px;
+			padding-top: 20px;
+			margin-top: 15px;
+			width: 20px;
+		}
     </style>
-</head>
-<body>
+    </head>
+    <body>
     <div class="header">
         <img class="imagesrc" src="../images/logo4.png" alt="" />
         <h1>TechS Inc Leave Management System</h1>
         <div class="nav-links">
             <a href="../index.php">Home</a>
+            <a href="../model/login.php">Login</a>
+            <a href="../model/signup.php">Signup</a>
             <a href="../model/about.php">About</a>
         </div>
     </div>
-
     <div class="container">
-        <h2>Forgot Password</h2>
-        <form action="../controller/forgot_password.php" method="post">
-            <div class="form-group">
-                <label for="username">Username:</label>
-                <input type="text" id="username" name="username" required>
+            <h1>Forgot Password</h1>
+            <div class="form-container">
+                <div class="form-inner">
+                    <form action="ForgotPassword.php" method="POST" class="forgot-password" autocomplete="off">
+                    <div class="form-group">
+                            <label for="email"><b>Email Address:</b></label>
+                                <input type="email" id="email" name="email" onblur="this.value=this.value.trim()" placeholder="Please enter your Email Address" required />
+                        </div>
+                        <button type="submit" class="btn">Send Code</button>
+                        <div class="login-link">
+                            <a href=" ../model/login.php">Back to Login</a>
+                        </div>
+                    </form>
+                </div>
             </div>
-            <div class="form-group">
-                <label for="email">Email:</label>
-                <input type="email" id="email" name="email" required>
-            </div>
-            <button type="submit" class="btn">Verify</button>
-        </form>
-    </div>
-
-    <div class="footer">
+        </div>
+        <div class="footer">
         © TechS Inc Company 2024, All Rights Reserved.
     </div>
-
     <?php if ($alert_message != ""): ?>
     <div class="modal">
         <div class="modal-content">
             <h2><?php echo $alert_message; ?></h2>
-            <p><?php echo $modal_Message; ?></p>
             <a href="<?php echo $modal_button; ?>" class="modal-button">Proceed</a>
         </div>
     </div>
     <?php endif; ?>
-</body>
+    </body>
 </html>
