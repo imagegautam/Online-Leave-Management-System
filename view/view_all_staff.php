@@ -167,7 +167,7 @@ $result = $conn->query($sql);
 		<img class = "imagesrc" src="../images/logo4.png" alt = "" />
         <h1>TechS Inc Leave Management System</h1>
         <div class="user-info">
-            <span><a href="../view/admin_dashboard.php" style="color: white; text-decoration: none;">Home</a></span> | 
+            <span><a href="../controller/admin_dashboard.php" style="color: white; text-decoration: none;">Home</a></span> | 
 			<span><a href="../index.php" style="color: white; text-decoration: none;">Logout</a></span> | 
             <span>Hi admin</span>
         </div>
@@ -175,10 +175,12 @@ $result = $conn->query($sql);
     
     <div class="container">
         <div class="sidebar">
-            <a href="../view/admin_dashboard.php">Add Staff</a>
+            <a href="../controller/admin_dashboard.php">Add Staff</a>
 			<a href="../view/leave_requests.php">View Leave Requests</a>
             <a href="../view/view_all_staff.php">View All Staff</a>
-            <a href="../view/add_leave.php">Add Leave Type</a>
+            <a href="../controller/add_leave.php">Add Leave Type</a>
+            <a href="../controller/delete_leave.php">Delete Leave Type</a>
+			<a href="../controller/add_compoff_leave.php">Add Comp-Off Leave</a>
         </div>
         
         <div class="content">
@@ -188,29 +190,48 @@ $result = $conn->query($sql);
                     <tr>
                         <th>Staff ID</th>
                         <th>Username</th>
+						<th>Email</th>
                         <th>Password</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     <?php
-                    if ($result->num_rows > 0) {
-                        while($row = $result->fetch_assoc()) {
-                            echo "<tr>";
-                            echo "<td>" . $row["user_id"] . "</td>";
-                            echo "<td>" . $row["username"] . "</td>";
-                            echo "<td>" . $row["password"] . "</td>";
-                            echo "<td>
-                                    <button class='action-btn update-btn' onclick='updateStaff(" . $row["user_id"] . ")'>Update</button>
-                                    <button class='action-btn delete-btn' onclick='deleteStaff(" . $row["user_id"] . ")'>Delete</button>
-                                  </td>";
-                            echo "</tr>";
-                        }
-                    } else {
-                        echo "<tr><td colspan='4'>No staff found</td></tr>";
-                    }
-                    $conn->close();
-                    ?>
+					include '../controller/db_connect.php';
+
+					define('ENCRYPTION_METHOD', 'AES-256-CBC');
+					define('SECRET_KEY', 'your_secret_key');
+					define('SECRET_IV', 'your_secret_iv');
+
+					function decryptPassword($encrypted_password) {
+						$key = hash('sha256', SECRET_KEY);
+						$iv = substr(hash('sha256', SECRET_IV), 0, 16);
+						return openssl_decrypt($encrypted_password, ENCRYPTION_METHOD, $key, 0, $iv);
+					}
+					$sql = "SELECT * FROM users where role = 'staff'";
+					$result = $conn->query($sql);
+
+					if ($result->num_rows > 0) {
+						while ($row = $result->fetch_assoc()) {
+							echo "<tr>";
+							echo "<td>" . $row["user_id"] . "</td>";
+							echo "<td>" . $row["username"] . "</td>";
+							echo "<td>" . $row["email"] . "</td>";
+							echo "<td>" . $row["password"] . "</td>";
+
+							
+							echo "<td>
+									<button class='action-btn update-btn' onclick='updateStaff(" . $row["user_id"] . ")'>Update</button>
+									<button class='action-btn delete-btn' onclick='deleteStaff(" . $row["user_id"] . ")'>Delete</button>
+								  </td>";
+							echo "</tr>";
+						}
+					} else {
+						echo "<tr><td colspan='4'>No staff found</td></tr>";
+					}
+
+					$conn->close();
+					?>
                 </tbody>
             </table>
             
@@ -230,13 +251,11 @@ $result = $conn->query($sql);
     
     <script>
         function updateStaff(id) {
-            window.location.href = '../view/update_staff.php?id=' + id;
+            window.location.href = '../controller/update_staff.php?id=' + id;
         }
 
         function deleteStaff(id) {
-            if (confirm('Are you sure you want to delete this staff member?')) {
-                window.location.href = '../view/delete_staff.php?id=' + id;
-            }
+                window.location.href = '../controller/delete_staff.php?id=' + id;
         }
     </script>
 </body>
