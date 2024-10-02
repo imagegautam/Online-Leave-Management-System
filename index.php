@@ -20,6 +20,9 @@
             align-items: center;
 			background-image: url('images/sidebar.jpg');
         }
+        .header h1 {
+            margin: 0;
+        }
         .container {
             margin: 13px;
             background-color: white;
@@ -96,7 +99,7 @@
             <a href="index.php">Home</a>
             <a href="model/login.php">Login</a>
             <a href="model/signup.php">Signup</a>
-            <a href="view/about.php">About</a>
+            <a href="model/about.php">About</a>
         </div>
     </div>
     
