@@ -2,7 +2,7 @@
 $servername = "localhost";
 $username = "root";
 $password = "";
-$dbname = "leave";
+$dbname = "leave_management_system";
 
 $conn = new mysqli($servername, $username, $password, $dbname);
 
