@@ -98,6 +98,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         }
         .form-group {
             margin-bottom: 15px;
+            position: relative;
         }
         .form-group label {
             display: block;
@@ -108,6 +109,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             padding: 8px;
             border: 1px solid #ddd;
             border-radius: 4px;
+        }
+        .form-group .toggle-password {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: pointer;
         }
         .btn {
             background-color: #3498db;
@@ -150,7 +158,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             margin-left: 0px;
         }
         .modal {
-           
             position: fixed;
             z-index: 1;
             left: 0;
@@ -172,7 +179,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         .modal-button {
             display: block;
             margin: 20px auto;
-			width: 65px;
+            width: 65px;
             padding: 10px 20px;
             background-color: #3498db;
             color: white;
@@ -182,6 +189,15 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         .modal-button:hover {
             background-color: #2980b9;
         }
+		.form-group .toggle-password{
+			padding-top: 25px;
+		}
+		input[type="checkbox" i] {
+			height: 30px;
+			padding-top: 20px;
+			margin-top: 15px;
+			width: 20px;
+		}
     </style>
 </head>
 <body>
@@ -206,8 +222,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             <div class="form-group">
                 <label for="password">Password:</label>
                 <input type="password" id="password" name="password" required>
+                <input type="checkbox" onclick="togglePasswordVisibility()">
+				<label for "">Show Password</label>
             </div>
-			<p><a href="../controller/forgot_password.php">Forgot Password?</a></p>
+			<p><a href="../controller/ForgotPassword.php">Forgot Password?</a></p>
             <button type="submit" class="btn">Login</button>
         </form>
     </div>
@@ -226,5 +244,17 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     </div>
     <?php endif; ?>
 
+    <script>
+        function togglePasswordVisibility() {
+    var passwordInput = document.getElementById("password");
+    if (passwordInput.type === "password") {
+        passwordInput.type = "text";
+    } else {
+        passwordInput.type = "password";
+    }
+}
+    </script>
+
 </body>
 </html>
+
