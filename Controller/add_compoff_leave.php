@@ -6,22 +6,24 @@ $modal_button = "";
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $staff_id = $_POST['staff_id'];
-    $date_worked = $_POST['date_worked'];
+    $date_from = $_POST['date_from'];
+    $date_to = $_POST['date_to'];
     $number_of_days = $_POST['number_of_days'];
 
-    $sql = "INSERT INTO comp_off_leaves (staff_id, date_worked, number_of_days) VALUES ('$staff_id', '$date_worked', '$number_of_days')";
+    $sql = "INSERT INTO comp_off_leaves (staff_id, date_from, date_to, number_of_days) VALUES ('$staff_id', '$date_from', '$date_to', '$number_of_days')";
 
     if ($conn->query($sql) === TRUE) {
-		$alert_message = "Comp-Off Leave added successfully.";
+        $alert_message = "Comp-Off Leave added successfully.";
         $modal_button = "../controller/add_compoff_leave.php";
     } else {
-		$alert_message = "Failed to add coomp off Leave..";
+        $alert_message = "Failed to add comp off Leave.";
         $modal_button = "../controller/add_compoff_leave.php";
-		}
+    }
 
     $conn->close();
 }
 ?>
+
 
 
 <!DOCTYPE html>
@@ -164,11 +166,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 </head>
 <body>
     <div class="header">
-		<img class = "imagesrc" src="../images/logo4.png" alt = "" />
+        <img class="imagesrc" src="../images/logo4.png" alt="" />
         <h1>TechS Inc Leave Management System</h1>
         <div class="user-info">
-			<span><a href="../controller/admin_dashboard.php" style="color: white; text-decoration: none;">Home</a></span> | 
-			<span><a href="../index.php" style="color: white; text-decoration: none;">Logout</a></span> | 
+            <span><a href="../controller/admin_dashboard.php" style="color: white; text-decoration: none;">Home</a></span> | 
+            <span><a href="../index.php" style="color: white; text-decoration: none;">Logout</a></span> | 
             <span>Hi admin</span>
         </div>
     </div>
@@ -191,12 +193,16 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     <input type="text" name="staff_id" placeholder="Staff ID" required>
                 </div>
                 <div class="form-group">
-                    <label>Date Worked *</label>
-                    <input type="date" name="date_worked" required>
+                    <label>From Date *</label>
+                    <input type="date" id="date_from" name="date_from" required>
+                </div>
+                <div class="form-group">
+                    <label>To Date *</label>
+                    <input type="date" id="date_to" name="date_to" required>
                 </div>
                 <div class="form-group">
                     <label>Number of Days *</label>
-                    <input type="number" name="number_of_days" placeholder="Number of Days" required>
+                    <input type="number" id="number_of_days" name="number_of_days" placeholder="Number of Days" readonly>
                 </div>
                 <button type="submit" class="btn">Add Comp-Off Leave</button>
             </form>
@@ -206,14 +212,37 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     <div class="footer">
         © TechS Inc Company 2024, All Rights Reserved.
     </div>
+
+    <?php if ($alert_message != ""): ?>
+        <div class="modal">
+            <div class="modal-content">
+                <p><?php echo $alert_message; ?></p>
+                <a href="<?php echo $modal_button; ?>" class="modal-button">Proceed</a>
+            </div>
+        </div>
+    <?php endif; ?>
+
+    <script>
+        const dateFrom = document.getElementById('date_from');
+        const dateTo = document.getElementById('date_to');
+        const numberOfDays = document.getElementById('number_of_days');
+
+        dateFrom.addEventListener('change', calculateDays);
+        dateTo.addEventListener('change', calculateDays);
+
+        function calculateDays() {
+            const fromDate = new Date(dateFrom.value);
+            const toDate = new Date(dateTo.value);
+
+            if (fromDate && toDate && toDate >= fromDate) {
+                const timeDiff = Math.abs(toDate - fromDate);
+                const daysDiff = Math.ceil(timeDiff / (1000 * 60 * 60 * 24)) + 1;
+                numberOfDays.value = daysDiff;
+            } else {
+                numberOfDays.value = '';
+            }
+        }
+    </script>
 </body>
 </html>
-<?php if ($alert_message != ""): ?>
-    <div class="modal">
-        <div class="modal-content">
-            <p><?php echo $alert_message; ?></p>
-            <a href="<?php echo $modal_button; ?>" class="modal-button">Proceed</a>
-        </div>
-    </div>
-    <?php endif; ?>
 

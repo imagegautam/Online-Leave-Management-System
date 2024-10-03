@@ -13,15 +13,37 @@ if (!isset($_SESSION['staff_id'])) {
 
 $staff_id = $_SESSION['staff_id'];
 
+// Fetch staff details
 $sql = "SELECT * FROM users WHERE user_id = '$staff_id'";
 $result = $conn->query($sql);
 
 if ($result->num_rows > 0) {
     $staff = $result->fetch_assoc();
 } else {
-	$alert_message = "No staff found with the given ID.";
+    $alert_message = "No staff found with the given ID.";
     $modal_button = "../view/staff_dashboard.php";
     exit;
+}
+
+// Check for existing Comp Off Leaves records
+$sql_check_comp_off = "SELECT * FROM comp_off_leaves WHERE staff_id = '$staff_id'";
+$result_check_comp_off = $conn->query($sql_check_comp_off);
+$has_comp_off_records = $result_check_comp_off->num_rows > 0;
+
+// Fetch leave categories from the database
+$sql_leave_categories = "SELECT leave_category FROM leave_types";
+$result_leave_categories = $conn->query($sql_leave_categories);
+$leave_categories = [];
+
+if ($result_leave_categories->num_rows > 0) {
+    while ($row = $result_leave_categories->fetch_assoc()) {
+        $leave_categories[] = $row['leave_category'];
+    }
+}
+
+// Add "Comp Off Leave" to the list if there are records in comp_off_leaves
+if ($has_comp_off_records && !in_array('Comp Off Leave', $leave_categories)) {
+    $leave_categories[] = 'Comp Off Leave';
 }
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
@@ -39,25 +61,22 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     }
 
     if ($leave_type == 'Comp Off Leave') {
-        $sql_check_comp_off = "SELECT * FROM comp_off_leaves WHERE staff_id = '$staff_id'";
-        $result_check_comp_off = $conn->query($sql_check_comp_off);
-
-        if ($result_check_comp_off->num_rows > 0) {
+        if ($has_comp_off_records) {
             $number_of_days = calculateDays($start_date, $end_date);
             $sql = "INSERT INTO comp_off_leave_applications (staff_id, leave_date, number_of_days, status) 
                     VALUES ('$staff_id', '$start_date', '$number_of_days', 'Pending')";
 
             if ($conn->query($sql) === TRUE) {
-				$alert_message = "Comp Off Leave application submitted successfully.";
-				$modal_button = "../controller/apply_leave.php";
-			} else {
-				$alert_message = "Error submitting Comp Off Leave application.";
-				$modal_button = "../controller/apply_leave.php";
-			}
+                $alert_message = "Comp Off Leave application submitted successfully.";
+                $modal_button = "../controller/apply_leave.php";
+            } else {
+                $alert_message = "Error submitting Comp Off Leave application.";
+                $modal_button = "../controller/apply_leave.php";
+            }
         } else {
             $alert_message = "No existing Comp Off Leave records found. Please record a comp off before applying.";
-			$modal_button = "../view/staff_dashboard.php";
-			exit;
+            $modal_button = "../view/staff_dashboard.php";
+            exit;
         }
     } else {
         $sql_leave_type = "SELECT leave_id, available_leaves FROM leave_types WHERE leave_category = '$leave_type'";
@@ -73,13 +92,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $leave_type_id = $leave_type_info['leave_id'];
             $available_leaves = $leave_type_info['available_leaves'];
 
-            $sql_taken_leaves = "SELECT SUM(DATEDIFF(end_date, start_date) + 1) AS total_taken_leaves FROM leave_applications join leave_types as lp on leave_applications.leave_type_id = lp.leave_id WHERE staff_id = '$staff_id' AND leave_applications.leave_type_id = '$leave_type_id' AND status = 'Approved'";
+            $sql_taken_leaves = "SELECT SUM(DATEDIFF(end_date, start_date) + 1) AS total_taken_leaves 
+                FROM leave_applications 
+                JOIN leave_types AS lp ON leave_applications.leave_type_id = lp.leave_id 
+                WHERE staff_id = '$staff_id' AND leave_applications.leave_type_id = '$leave_type_id' AND status = 'Approved'";
             $result_taken_leaves = $conn->query($sql_taken_leaves);
             $taken_leaves_info = $result_taken_leaves->fetch_assoc();
             $total_taken_leaves = $taken_leaves_info['total_taken_leaves'];
 
             $new_leave_days = calculateDays($start_date, $end_date);
-            
             $pending_leaves = $available_leaves - $total_taken_leaves;
 
             if ($leave_type == 'Medical Leave') {
@@ -93,20 +114,21 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
             if ($conn->query($sql) === TRUE) {
                 $alert_message = "Leave application submitted successfully.";
-				$modal_button = "../controller/apply_leave.php";
+                $modal_button = "../controller/apply_leave.php";
             } else {
-                $alert_message = "Error submitting leave application";
-				$modal_button = "../controller/apply_leave.php";
+                $alert_message = "Error submitting leave application.";
+                $modal_button = "../controller/apply_leave.php";
             }
         } else {
-			$alert_message = "Invalid leave type selected.";
-			$modal_button = "../controller/apply_leave.php";
+            $alert_message = "Invalid leave type selected.";
+            $modal_button = "../controller/apply_leave.php";
         }
     }
 
     $conn->close();
 }
 ?>
+
 
 
 <!DOCTYPE html>
@@ -116,7 +138,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Apply Leave - Leave Management System</title>
     <style>
-        body {
+       body {
             font-family: Arial, sans-serif;
             margin: 0;
             padding: 0;
@@ -269,15 +291,17 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             <form action="../controller/apply_leave.php" method="post">
                 <div class="form-group">
                     <label>Staff ID *</label>
-					<input type="text" name="staff_id" value="<?php echo $staff_id; ?>" readonly>                </div>
+                    <input type="text" name="staff_id" value="<?php echo $staff_id; ?>" readonly>
+                </div>
                 <div class="form-group">
                     <label>Leave Type *</label>
                     <select name="leave_type" required>
                         <option value="">Select Leave Type</option>
-                        <option value="Casual Leave">Casual Leave</option>
-                        <option value="Medical Leave">Medical Leave</option>
-                        <option value="Comp Off Leave">Comp Off Leave</option>
-                        <option value="Sick Leave">Sick Leave</option>
+                        <?php foreach ($leave_categories as $category): ?>
+                            <option value="<?php echo htmlspecialchars($category); ?>">
+                                <?php echo htmlspecialchars($category); ?>
+                            </option>
+                        <?php endforeach; ?>
                     </select>
                 </div>
                 <div class="form-group">
@@ -297,7 +321,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         </div>
     </div>
     <div class="footer">
+    <div class="footer">
         © TechS Inc Company 2024, All Rights Reserved.
+    </div>
     </div>
 </body>
 </html>
@@ -308,4 +334,4 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             <a href="<?php echo $modal_button; ?>" class="modal-button">Proceed</a>
         </div>
     </div>
-    <?php endif; ?>
+<?php endif; ?>
